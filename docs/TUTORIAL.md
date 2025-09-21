@@ -51,18 +51,30 @@ source ~/.bashrc
 ## ３．ディレクトリ構成（この時点）
 
 ```
-/home/sen/partyapp/
-├── credentials/
-│   └── .env
-├── .partyapp/              # venv
-└── partyapp/               # Gitリポジトリ
-    ├── docs/
-    │   └── TUTORIAL.md
-    ├── README.md
-    ├── requirements.txt
-    ├── src/
-    │   └── partyapp/
-    └── tests/
+/home/sen/partyapp/partyapp
+.
+├── docs
+│   ├── CLI.md
+│   ├── MODEL.md
+│   └── TUTORIAL.md
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+├── src
+│   ├── __init__.py
+│   └── partyapp
+│       ├── cli.py
+│       ├── config.py
+│       └── db
+│           ├── base.py
+│           └── models
+│               ├── associations.py
+│               ├── category.py
+│               ├── enums.py
+│               ├── __init__.py
+│               ├── law.py
+│               └── party.py
+└── tests
 ```
 
 ---
