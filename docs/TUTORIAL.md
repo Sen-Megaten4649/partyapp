@@ -244,7 +244,7 @@ def get_session() -> Generator[Session, None, None]:
 
 ## ７．モデル定義
 
-（Party, Category, Law, Associations を定義する章。省略）
+`MODEL.md`参照
 
 ---
 
