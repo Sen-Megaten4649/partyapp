@@ -5,7 +5,7 @@
 まずは Git リポジトリを初期化して、初期ファイル（README.md, TUTORIAL.md など）をコミットしておく。
 
 ```bash
-cd /home/<user>/partyapp/partyapp
+cd /home/sen/partyapp/partyapp
 git init
 git add .
 git commit -m "chore: initial commit (README + TUTORIAL.md + requirements.txt + skeleton)"
@@ -69,7 +69,7 @@ source ~/.bashrc
 
 ## ４．依存パッケージのインストール
 
-`requirements.txt` に以下を追記。
+`requirements.txt` に以下を記載。
 
 ```text
 SQLAlchemy>=2.0
@@ -79,19 +79,95 @@ python-dotenv>=1.0
 -e .
 ```
 
-仮想環境を有効化してインストール。
+- `-e .` は **「このプロジェクト自身を editable install する」** という指定。
+- つまり `src/partyapp/` を **pip でパッケージとして認識させる**ために必要。
 
-```bash
-cd /home/sen/partyapp/app
-source ../.partyapp/bin/activate
-pip install -r requirements.txt
+---
+
+## ５．pyproject.toml の作成
+
+### なぜ必要？
+
+Python の世界では、`setup.py` が昔から使われていましたが、  
+現在は **PEP 518/PEP 621** に基づく `pyproject.toml` が主流です。
+
+役割は：
+
+- **パッケージの名前やバージョンを定義する**
+- **どのディレクトリを import 対象にするか指定する**
+- **コマンドラインツールのエントリポイントを定義する**
+
+このプロジェクトでは、`requirements.txt` に `-e .` があるので、  
+`pyproject.toml` が無いと「ここが Python プロジェクトだ」と認識されません。
+
+### 作成方法
+
+リポジトリ直下 `/home/sen/partyapp/partyapp/pyproject.toml` に以下を追加。
+
+```toml
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "partyapp"
+version = "0.1.0"
+description = "Political party data collection system (MVP)"
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+pa = "partyapp.cli:cli"
 ```
 
 ---
 
-## ５．データベースハンドラの作成
+### 解説ポイント（忘れないように）
 
-`app/src/partyapp/db/base.py`
+- `[build-system]`
+
+  - 「このプロジェクトをどうビルドするか」を書く。
+  - 今は setuptools と wheel が標準。
+
+- `[project]`
+
+  - `name` → パッケージ名（import で使う名前ではなく、配布名）
+  - `version` → バージョン番号
+  - `description` → 簡単な説明
+  - `requires-python` → サポートする Python バージョン
+
+- `[tool.setuptools.packages.find]`
+
+  - `where = ["src"]` により、**src 下のディレクトリをパッケージ探索対象にする**
+  - これで `src/partyapp` が Python パッケージとして認識される
+
+- `[project.scripts]`
+  - コマンドラインツールを登録するセクション
+  - 今回は `pa` → `partyapp.cli:cli` と指定し、  
+    `pa init-db` などの CLI コマンドが使えるようになる
+
+---
+
+### インストール
+
+`pyproject.toml` を作成したら再度実行。
+
+```bash
+cd /home/sen/partyapp/partyapp
+source ../.partyapp/bin/activate
+pip install -r requirements.txt
+```
+
+これで editable インストールが成功し、  
+`pa` コマンドが有効になる。
+
+---
+
+## ６．データベースハンドラの作成
+
+`partyapp/src/partyapp/db/base.py`
 
 ```python
 from __future__ import annotations
@@ -123,108 +199,15 @@ def get_session() -> Generator[Session, None, None]:
 
 ---
 
-## ６．モデル定義
+## ７．モデル定義
 
-### `party.py`
-
-```python
-from sqlalchemy import String, Integer, Date
-from sqlalchemy.orm import Mapped, mapped_column
-from partyapp.db.base import Base
-
-class Party(Base):
-    __tablename__ = "M_PARTY"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
-    short_name: Mapped[str] = mapped_column(String(50))
-    founded_on: Mapped[Date] = mapped_column(Date)
-    dissolved_on: Mapped[Date] = mapped_column(Date)
-```
-
-### `category.py`
-
-```python
-from sqlalchemy import String, Integer
-from sqlalchemy.orm import Mapped, mapped_column
-from partyapp.db.base import Base
-
-class Category(Base):
-    __tablename__ = "M_CATEGORY"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    category_cd: Mapped[str] = mapped_column(String(3), unique=True)
-    name: Mapped[str] = mapped_column(String(100))
-    description: Mapped[str] = mapped_column(String(255))
-```
-
-### `law.py`
-
-```python
-from sqlalchemy import String, Integer, Date, Enum, Text
-from sqlalchemy.orm import Mapped, mapped_column
-from partyapp.db.base import Base
-
-class Law(Base):
-    __tablename__ = "T_LAW"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    law_id: Mapped[str] = mapped_column(String(20))
-    law_num: Mapped[str] = mapped_column(String(50))
-    law_type: Mapped[str] = mapped_column(Enum("constitution","law","cabinet_order","imperial_order",
-                                              "ministerial_order","rule","ordinance","local_rule"))
-    jurisdiction: Mapped[str] = mapped_column(Enum("national","local"))
-    title: Mapped[str] = mapped_column(String(200))
-    promulgation_date: Mapped[Date] = mapped_column(Date)
-    enforcement_date: Mapped[Date] = mapped_column(Date)
-    summary: Mapped[str] = mapped_column(Text)
-    law_url: Mapped[str] = mapped_column(Text)
-```
-
-### `associations.py`
-
-```python
-from sqlalchemy import Integer, ForeignKey, Enum, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
-from partyapp.db.base import Base
-
-class LawCategoryMap(Base):
-    __tablename__ = "T_LAW_CATEGORY_MAP"
-    __table_args__ = (UniqueConstraint("law_id","category_id", name="uq_law_category"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    law_id: Mapped[int] = mapped_column(ForeignKey("T_LAW.id"))
-    category_id: Mapped[int] = mapped_column(ForeignKey("M_CATEGORY.id"))
-
-class PartyLawRole(Base):
-    __tablename__ = "T_PARTY_LAW_ROLE"
-    __table_args__ = (UniqueConstraint("law_id","party_id", name="uq_party_law"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    law_id: Mapped[int] = mapped_column(ForeignKey("T_LAW.id"))
-    party_id: Mapped[int] = mapped_column(ForeignKey("M_PARTY.id"))
-    submission_role: Mapped[str] = mapped_column(Enum("submitter","co_submitter","cabinet","amendment","none"))
-    promotion_role: Mapped[str] = mapped_column(Enum("coalition","support","none"))
-    vote_role: Mapped[str] = mapped_column(Enum("voted_for","voted_against","abstained","boycott","none"))
-    note: Mapped[str]
-```
-
-### `__init__.py`
-
-```python
-from .party import Party
-from .category import Category
-from .law import Law
-from .associations import LawCategoryMap, PartyLawRole
-
-__all__ = ["Party", "Category", "Law", "LawCategoryMap", "PartyLawRole"]
-```
+（Party, Category, Law, Associations を定義する章。省略）
 
 ---
 
-## ７．CLI の作成
+## ８．CLI の作成
 
-`app/src/partyapp/cli.py`
+`partyapp/src/partyapp/cli.py`
 
 ```python
 import typer
@@ -247,31 +230,10 @@ def init_db() -> None:
 
 ---
 
-## ８．pyproject.toml の作成
-
-```toml
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "partyapp"
-version = "0.1.0"
-requires-python = ">=3.10"
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[project.scripts]
-pa = "partyapp.cli:cli"
-```
-
----
-
 ## ９．テーブル作成
 
 ```bash
-cd /home/sen/partyapp/app
+cd /home/sen/partyapp/partyapp
 source ../.partyapp/bin/activate
 
 # インストール

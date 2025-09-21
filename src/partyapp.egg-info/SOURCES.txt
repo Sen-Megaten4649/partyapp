@@ -1,0 +1,7 @@
+README.md
+pyproject.toml
+src/partyapp.egg-info/PKG-INFO
+src/partyapp.egg-info/SOURCES.txt
+src/partyapp.egg-info/dependency_links.txt
+src/partyapp.egg-info/entry_points.txt
+src/partyapp.egg-info/top_level.txt
