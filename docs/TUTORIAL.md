@@ -252,24 +252,7 @@ def get_session() -> Generator[Session, None, None]:
 
 `partyapp/src/partyapp/cli.py`
 
-```python
-import typer
-from sqlalchemy import text
-from partyapp.db.base import engine, Base
-
-cli = typer.Typer(help="partyapp CLI")
-
-@cli.command("connect-db")
-def connect_db() -> None:
-    with engine.connect() as conn:
-        version = conn.execute(text("SELECT VERSION()")).scalar_one()
-        typer.echo(f"Connected. MariaDB version: {version}")
-
-@cli.command("init-db")
-def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
-    typer.echo("Tables created (if not exists).")
-```
+`CLI.md`を参照
 
 ---
 
