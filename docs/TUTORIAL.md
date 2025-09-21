@@ -165,31 +165,74 @@ pip install -r requirements.txt
 
 ---
 
-## ６．データベースハンドラの作成
+## ６．config.py の作成とデータベースハンドラの作成
+
+DB 接続文字列を組み立てるための設定ファイル。  
+認証情報は環境変数から取得し、パスワードは URL エンコードする。
+
+`partyapp/config.py`
+
+```python
+import os
+import urllib.parse
+
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+
+# パスワードをURLエンコードしてから埋め込む
+encoded_pw = urllib.parse.quote_plus(DB_PASSWORD or "")
+
+DATABASE_URL = (
+    f"mysql+pymysql://{DB_USER}:{encoded_pw}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+)
+```
+
+ポイント：
+
+- `.env` ファイルを併用する場合は `python-dotenv` を使って環境変数をロードする
+- 直接パスワードを埋め込むのではなく、**URL エンコードして安全に渡す**
+
+---
 
 `partyapp/src/partyapp/db/base.py`
 
 ```python
 from __future__ import annotations
-import os
 from typing import Generator
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
+from config import DATABASE_URL
+
+
 class Base(DeclarativeBase):
+    """全ての ORM モデルが継承するベースクラス"""
     pass
 
-def _db_url() -> str:
-    return (
-        f"mysql+pymysql://{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}"
-        f"@{os.environ.get('DB_HOST','127.0.0.1')}:{os.environ.get('DB_PORT','3306')}"
-        f"/{os.environ.get('DB_NAME','partyapp')}?charset=utf8mb4"
-    )
 
-engine = create_engine(_db_url(), pool_pre_ping=True, future=True)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+# DB エンジン
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,   # 切断検知＆自動再接続
+    future=True,          # SQLAlchemy 2.0 スタイル
+    echo=False            # True にすると SQL ログ出力
+)
+
+# セッションファクトリ
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    future=True,
+)
+
 
 def get_session() -> Generator[Session, None, None]:
+    """セッションを生成して呼び出し元に返す。"""
     session: Session = SessionLocal()
     try:
         yield session
